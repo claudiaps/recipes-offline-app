@@ -8,12 +8,11 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import InputSearch from "../../components/InputSearch";
-import { useCallback, useState } from "react";
-import axios from "axios";
-import { RecipeSearchQuery, RecipeSummary } from "@/types/recipes";
+import { useCallback, useEffect, useState } from "react";
+import { RecipeSummary } from "@/types/recipes";
 import { FlatList } from "react-native-gesture-handler";
 import RecipeDetailsModal from "@/components/RecipeDetailsModal";
+import { useRecipeDatabase } from "@/database/recipeService";
 
 const API_KEY = "5d393e23f5a845a1ab6c08a1bbbc7646";
 
@@ -40,11 +39,11 @@ const RecipeListItem = ({
   );
 };
 
-export default function HomeScreen() {
-  const [input, setInput] = useState("");
+export default function OfflineRecipesList() {
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<number>();
+  const { getRecipes } = useRecipeDatabase();
 
   const onPressRecipe = (recipeId: number) => {
     setSelectedRecipeId(recipeId);
@@ -53,15 +52,18 @@ export default function HomeScreen() {
   const handleSearch = useCallback(async () => {
     try {
       setLoading(true);
-      const { data }: RecipeSearchQuery = await axios.get(
-        `https://api.spoonacular.com/recipes/complexSearch?apiKey=${API_KEY}&query=${input}&number=10`
-      );
-      setRecipes(data.results);
+      const recipes = await getRecipes();
+      setRecipes(recipes);
     } catch (error) {
+      console.log(error);
     } finally {
       setLoading(false);
     }
-  }, [input]);
+  }, []);
+
+  useEffect(() => {
+    handleSearch();
+  }, []);
 
   if (loading) {
     return (
@@ -74,14 +76,6 @@ export default function HomeScreen() {
   return (
     <>
       <SafeAreaView>
-        <View style={styles.inputContainer}>
-          <InputSearch
-            placeholder="Search Recipes"
-            value={input}
-            setValue={setInput}
-            handleSearch={handleSearch}
-          />
-        </View>
         <View style={{ paddingHorizontal: 16 }}>
           <FlatList
             data={recipes}
@@ -95,7 +89,7 @@ export default function HomeScreen() {
           visible={Boolean(selectedRecipeId)}
           onClose={() => setSelectedRecipeId(undefined)}
           recipeId={selectedRecipeId}
-          offline={false}
+          offline={true}
         />
       </SafeAreaView>
     </>
